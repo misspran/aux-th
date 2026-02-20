@@ -5,7 +5,11 @@ import uvicorn
 from fastapi.responses import StreamingResponse
 from services import event_generator
 
-app = FastAPI()
+app = FastAPI(
+    title="Real-time Task Management API",
+    description="Real-time task-management application using FastAPI WebSockets",
+    version="1.0.0"
+    )
 
 @app.get("/")
 def read_root():

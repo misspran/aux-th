@@ -8,6 +8,8 @@ class Task(_db.Base):
     title = _sql.Column(_sql.String, index=True)
     description = _sql.Column(_sql.String, index=True)
     status = _sql.Column(_sql.String, default=None)
+    created_at = _sql.Column(_sql.DateTime, default=_sql.func.now())
+    updated_at = _sql.Column(_sql.DateTime, default=_sql.func.now(), onupdate=_sql.func.now())
 
 class User(_db.Base):
     __tablename__ = 'users'
