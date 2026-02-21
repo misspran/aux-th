@@ -8,7 +8,7 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgresql://myuser:password@localhost/taskdb
+      DATABASE_URL: postgresql://myuser:password@db/taskdb
 
   db:
     image: postgres:16
