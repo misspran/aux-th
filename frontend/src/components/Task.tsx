@@ -1,6 +1,6 @@
 import { Button, Input, Select } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useState, type RefObject } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import {editTask, addTask, removeTask} from '../api';
 import type { ITask } from '../interface/interface';
 import { task_type_add, task_type_edit, task_type_remove } from '../constants';
@@ -26,6 +26,7 @@ export const Task = ({ task, taskMode, socket, handleClose }: ITaskProps) => {
     const onEditTask = () => {
         if(!socket || taskModeState === "view") return;
         editTask(socket.current, taskState, task_type_edit);
+        setTaskModeState("view")
     };
 
     const onDeleteTask = () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Task } from "./Task";
-import type { ITask } from "../interface/interface";
+import type { ITask, ITaskMode } from "../interface/interface";
 import { Button } from "antd";
 import { connectToWebSocket, disconnectFromWebSocket, getTasks } from "../api";
 import { AddTask } from "./AddTask";
@@ -26,21 +26,23 @@ export const Board = () => {
         };
         ws.onclose = () => setIsConnected(false);
         ws.onmessage = (event) => {
-            console.log(event, 'message')
             try {
                 const data = JSON.parse(event.data);
                 console.log(data, 'data')
                 if (data.type === "users_list") return;
                 if (data.type === "task_created" && data.task) {
                     setTasks((prev) => [...prev, data.task]);
+                    setTaskMode("view")
                     return;
                 }
                 else if (data.type === "task_updated" && data.task) {
                     setTasks((prev) => [...prev.map((t) => (t.id === data.task.id ? data.task : t))]);
+                    setTaskMode("view")
                     return;
                 }
                  else if (data.type === "task_removed" && data.task_id) {
                     setTasks((prev) => [...prev.filter(t => t.id !== data.task_id)]);
+                    setTaskMode("view")
                     return;
                 }
         

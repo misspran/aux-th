@@ -21,3 +21,5 @@ export interface ITaskResponse {
 }
 
 export type User = { id: number; username: string };
+
+export type ITaskMode = "view" | "edit" | "create" | "delete";
