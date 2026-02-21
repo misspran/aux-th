@@ -1,6 +1,6 @@
 import type { NavigateFunction } from "react-router-dom";
 import { BACKEND_URL } from "../constants";
-import type { User, ITask } from "../interface/interface";
+import type { User, ITask, IAddTask } from "../interface/interface";
 
 const wsUrl = (path: string) => BACKEND_URL.replace(/^http/, "ws") + path;
 
@@ -42,10 +42,26 @@ export async function getTasks(): Promise<ITask[]> {
   return data ?? [];
 }
 
-export function addEditTask(
+export function addTask(
+  ws: WebSocket | null,
+  task: IAddTask,
+  type: "add_task"
+): void {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  return ws.send(
+    JSON.stringify({
+      type: type,
+      title: task.title,
+      description: task.description,
+      status: task.status ?? "todo",
+    })
+  );
+}
+
+export function editTask(
   ws: WebSocket | null,
   task: ITask,
-  type: "add_task" | "edit_task" | "remove_task"
+  type: "edit_task",
 ): void {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   return ws.send(
@@ -55,6 +71,20 @@ export function addEditTask(
       title: task.title,
       description: task.description,
       status: task.status ?? "todo",
+    })
+  );
+}
+
+export function removeTask(
+  ws: WebSocket | null,
+  task_id: string | number,
+  type: "remove_task"
+): void {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  return ws.send(
+    JSON.stringify({
+      type: type,
+      id: task_id,
     })
   );
 }

@@ -5,6 +5,12 @@ export interface ITask {
     status: string;
 }
 
+export interface IAddTask {
+    title: string;
+    description: string;
+    status: string;
+}
+
 export interface ITaskResponse {
     id: string;
     title: string;

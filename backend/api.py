@@ -153,7 +153,8 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
             data_dict = json.loads(data)
             msg_type = data_dict.get("type")
-            print(data_dict)
+            print(data_dict, msg_type)
+            logger.info(data_dict, msg_type)
 
             if msg_type == "add_task":
                 try:
@@ -195,6 +196,7 @@ async def websocket_endpoint(
                         await manager.broadcast_items(payload)
                 except Exception as e:
                     logger.error("Error in websocket endpoint: %s", e)
+            logger.info(f"Received message of type: {msg_type} from user: {username}")
             if msg_type == "remove_task":
                 try:
                     task_id = data_dict.get("id")

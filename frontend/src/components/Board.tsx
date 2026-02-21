@@ -36,11 +36,11 @@ export const Board = () => {
                     return;
                 }
                 else if (data.type === "task_updated" && data.task) {
-                    setTasks([...tasks.map((t) => (t.id === data.task.id ? data.task : t))]);
+                    setTasks((prev) => [...prev.map((t) => (t.id === data.task.id ? data.task : t))]);
                     return;
                 }
                  else if (data.type === "task_removed" && data.task_id) {
-                    setTasks([...tasks.filter(t => t.id !== data.task_id)]);
+                    setTasks((prev) => [...prev.filter(t => t.id !== data.task_id)]);
                     return;
                 }
         
@@ -95,7 +95,7 @@ export const Board = () => {
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridGap: "15px" }}>
                     {isConnected && tasks.map((task) => (
-                        <Task key={task.id} task={task} taskMode="view"/>
+                        <Task key={task.id} task={task} taskMode="view" socket={socketRef}/>
                     ))}
                 </div>
                 {!isConnected && <p>Connecting to server...</p>}
