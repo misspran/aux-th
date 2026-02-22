@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Task } from "./Task";
-import type { ITask, ITaskMode } from "../interface/interface";
+import type { ITask } from "../interface/interface";
 import { Button } from "antd";
-import { connectToWebSocket, disconnectFromWebSocket, getTasks } from "../api";
+import {  getTasks } from "../api";
 import { AddTask } from "./AddTask";
+import { wsUrl } from "../constants";
 
 export const Board = () => {
     const navigate = useNavigate();
@@ -15,58 +16,63 @@ export const Board = () => {
     const socketRef = useRef<WebSocket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
+    const getTasksList = async () => {
+        try {
+            const list = await getTasks();
+            setTasks(list);
+        } catch (error) {
+            console.error("Failed to fetch tasks:", error instanceof Error ? error.message : error);
+        }
+    };
+
     const connectWebSocket = async () => {
+      // Connect via websockets listen to message streams
+      try {
         if (!username) return;
-        const ws = await connectToWebSocket(username, navigate);
+        const ws = new WebSocket(wsUrl(`/ws/${encodeURIComponent(username)}`));
         socketRef.current = ws;
 
-        ws.onopen = () => {
+        socketRef.current.onopen = () => {
             setIsConnected(true);
-            getTasks().then(setTasks).catch(() => { console.log("Error getting data");});
+            getTasksList();
         };
-        ws.onclose = () => setIsConnected(false);
-        ws.onmessage = (event) => {
+        socketRef.current.onclose = () => setIsConnected(false);
+     
+        socketRef.current.onmessage = (event) => {
+    
             try {
                 const data = JSON.parse(event.data);
-                console.log(data, 'data')
-                if (data.type === "users_list") return;
+            
                 if (data.type === "task_created" && data.task) {
                     setTasks((prev) => [...prev, data.task]);
-                    setTaskMode("view")
                     return;
                 }
-                else if (data.type === "task_updated" && data.task) {
-                    setTasks((prev) => [...prev.map((t) => (t.id === data.task.id ? data.task : t))]);
-                    setTaskMode("view")
+                if (data.type === "task_updated" && data.task) {
+                    setTasks((prev) => [...prev.map((t) => (t.id === data.task.id ? data.task: t))]);
                     return;
                 }
-                 else if (data.type === "task_removed" && data.task_id) {
-                    setTasks((prev) => [...prev.filter(t => t.id !== data.task_id)]);
-                    setTaskMode("view")
+                if (data.type === "task_removed" && data.task_id != null) {
+                    setTasks((prev) => prev.filter((t) => t.id !== data.task_id));
                     return;
                 }
-        
             } catch {
                 console.log("Error parsing message");
             }
         };
-    };
-
-    const getTasksList = async() => {
-        try {
-            const tasks = await getTasks();
-            setTasks(tasks);
-        } catch (error) {
-            console.error("Failed to fetch tasks:", error instanceof Error ? error.message : error);
-        }
+    } catch (error) {
+        navigate("/login")
+        throw new Error(error instanceof Error ? error.message : "Failed to connect to WebSocket");
     }
+
+    };
 
     useEffect(() => {
         getTasksList();
         connectWebSocket();
         return () => {
             if (socketRef.current) {
-                disconnectFromWebSocket(socketRef.current);
+              // important to close connection and prevent memory leaks
+                socketRef.current.close();
             }
             socketRef.current = null;
         };
@@ -94,8 +100,7 @@ export const Board = () => {
 
             </div>
             <div style={{ padding: "15px"}}>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridGap: "15px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridGap: "15px", gridAutoFlow: 'row' }}>
                     {isConnected && tasks.map((task) => (
                         <Task key={task.id} task={task} taskMode="view" socket={socketRef}/>
                     ))}

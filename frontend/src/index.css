@@ -70,21 +70,15 @@ button:focus-visible {
 }
 
 .ant-input[disabled] {
-  color: #000000; /* Use a darker color, e.g., black or a specific dark grey */
+  color: #341539; /* Use a darker color, e.g., black or a specific dark grey */
   opacity: 1; /* Ensure full opacity if it's being faded */
-}
-
-/* Change background color of disabled input */
-.ant-input[disabled] {
   background-color: #f5f5f5; /* Use a lighter background than default, but still indicates disabled state */
 }
 
-.ant-select[disabled] {
-  color: #000000; /* Use a darker color, e.g., black or a specific dark grey */
+
+.ant-select-disabled {
+  color: #341539; /* Use a darker color, e.g., black or a specific dark grey */
   opacity: 1; /* Ensure full opacity if it's being faded */
+  background-color: #f5f5f5;
 }
 
-/* Change background color of disabled input */
-.ant-select[disabled] {
-  background-color: #f5f5f5; /* Use a lighter background than default, but still indicates disabled state */
-}

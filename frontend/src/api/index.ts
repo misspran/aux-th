@@ -1,8 +1,5 @@
-import type { NavigateFunction } from "react-router-dom";
 import { BACKEND_URL } from "../constants";
 import type { User, ITask, IAddTask } from "../interface/interface";
-
-const wsUrl = (path: string) => BACKEND_URL.replace(/^http/, "ws") + path;
 
 export async function login(username: string): Promise<User> {
   const res = await fetch(`${BACKEND_URL}/login`, {
@@ -15,24 +12,6 @@ export async function login(username: string): Promise<User> {
     throw new Error(err.error ?? "Login failed");
   }
   return res.json();
-}
-
-export async function connectToWebSocket(username: string, navigate: NavigateFunction): Promise<WebSocket> {
-    try {
-        const ws = new WebSocket(wsUrl(`/ws/${encodeURIComponent(username)}`));
-        return ws;
-    } catch (error) {
-        navigate("/login")
-        throw new Error(error instanceof Error ? error.message : "Failed to connect to WebSocket");
-    }
-}
-
-export function disconnectFromWebSocket(ws: WebSocket): void {
-    try {
-        ws.close();
-    } catch (error) {
-        throw new Error(error instanceof Error ? error.message : "Failed to disconnect from WebSocket");
-    }
 }
 
 export async function getTasks(): Promise<ITask[]> {

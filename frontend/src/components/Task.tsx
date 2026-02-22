@@ -4,6 +4,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import {editTask, addTask, removeTask} from '../api';
 import type { ITask } from '../interface/interface';
 import { task_type_add, task_type_edit, task_type_remove } from '../constants';
+import { emptyTask } from './AddTask';
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -14,13 +15,17 @@ export interface ITaskProps {
     handleClose?: () => void;
 }
 export const Task = ({ task, taskMode, socket, handleClose }: ITaskProps) => {
+
     const [taskModeState, setTaskModeState] = useState(taskMode);
     const [taskState, setTaskState] = useState(task);
-
     const onAddTask = () => {
         if(!socket || taskModeState === "view") return;
         addTask(socket.current, taskState, task_type_add);
-        if(taskModeState === "create" && handleClose) handleClose();
+        if(taskModeState === "create" && handleClose){ 
+            setTaskState(emptyTask)
+            handleClose()
+        };
+       
     };
 
     const onEditTask = () => {
@@ -41,6 +46,10 @@ export const Task = ({ task, taskMode, socket, handleClose }: ITaskProps) => {
             [name]: value
         }));
     };
+    // Update task
+    useEffect(() => {
+        setTaskState(task)
+    }, [task])
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '10px', border: '1px solid #ccc', borderRadius: '8px' }}>

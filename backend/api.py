@@ -34,6 +34,12 @@ def task_to_dict(task: Task) -> Dict[str, Any]:
         "updated_at": task.updated_at.isoformat() if task.updated_at else None,
     }
 
+class LoginRequest(BaseModel):
+    username: str
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
 
 class TaskResponse(BaseModel):
     id: int
@@ -44,15 +50,7 @@ class TaskResponse(BaseModel):
     updated_at: datetime | None
 
 
-class UserResponse(BaseModel):
-    id: int
-    username: str
-
-
-class LoginRequest(BaseModel):
-    username: str
-
-
+# WebSocket connection manager to handle active connections and broadcasting messages to connected clients.
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -89,12 +87,15 @@ class ConnectionManager:
         await self.broadcast_items(users)
 
     async def broadcast_tasks(self, tasks_list: List[Dict[str, Any]]):
-        tasks = json.dumps({
-            "type": "tasks_list",
-            "tasks": tasks_list,
-            "count": len(tasks_list)
-        })
-        await self.broadcast_items(tasks)
+        try:
+            tasks = json.dumps({
+                "type": "tasks_list",
+                "tasks": tasks_list,
+                "count": len(tasks_list)
+            })
+            await self.broadcast_items(tasks)
+        except Exception as e:
+            logger.error("Error broadcasting tasks: %s", e)
 
     async def broadcast_items(self, message: str):
         disconnected = []
@@ -112,32 +113,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@router.get("/tasks", response_model=List[TaskResponse])
-async def get_tasks(db: Session = Depends(get_db)):
-    """Return all tasks from the database."""
-    try:
-        tasks = db.query(Task).order_by(Task.id).all()
-        return [TaskResponse(**task_to_dict(t)) for t in tasks]
-    except Exception as e:
-        logger.error("Error fetching tasks: %s", e)
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
-
-@router.post("/login", response_model=UserResponse)
-async def login(body: LoginRequest, db: Session = Depends(get_db)):
-    """Create a new user or return existing user by username."""
-    try:
-        user = db.query(User).filter(User.username == body.username).first()
-        if not user:
-            user = User(username=body.username)
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        return UserResponse(id=user.id, username=user.username)
-    except Exception as e:
-        logger.error("Error in login endpoint: %s", e)
-        return JSONResponse(content={"error": str(e)}, status_code=500)
-
+# handle socket connections for real-time updates, create, delete on tasks 
 @router.websocket("/ws/{username}")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -153,11 +129,12 @@ async def websocket_endpoint(
             data = await websocket.receive_text()
             data_dict = json.loads(data)
             msg_type = data_dict.get("type")
-            print(data_dict, msg_type)
-            logger.info(data_dict, msg_type)
+           
+            user = db.query(User).filter(User.username == username).one_or_none()
 
             if msg_type == "add_task":
                 try:
+                    user = db.query(User).filter(User.username == username).one_or_none()
                     title = data_dict.get("title") or ""
                     description = data_dict.get("description") or ""
                     status = data_dict.get("status") or "todo"
@@ -185,6 +162,7 @@ async def websocket_endpoint(
                         task.title = title
                         task.description = description
                         task.status = status
+                        task.updated_by = user
                         task.updated_at = datetime.utcnow()
                         db.add(task)
                         db.commit()
@@ -220,3 +198,104 @@ async def websocket_endpoint(
         logger.error("Error in websocket endpoint: %s", e)
     finally:
         manager.disconnect(websocket, username)
+
+# REST API endpoints for login, creates new user if username does not exist, returns user info
+@router.post("/login", response_model=UserResponse)
+async def login(body: LoginRequest, db: Session = Depends(get_db)):
+    """Create a new user or return existing user by username."""
+    try:
+        user = db.query(User).filter(User.username == body.username).first()
+        if not user:
+            user = User(username=body.username)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return UserResponse(id=user.id, username=user.username)
+    except Exception as e:
+        logger.error("Error in login endpoint: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+# REST API endpoints for tasks
+@router.get("/tasks", response_model=List[TaskResponse])
+async def get_tasks(db: Session = Depends(get_db)):
+    """Return all tasks from the database."""
+    try:
+        tasks = db.query(Task).order_by(Task.id).all()
+        return [TaskResponse(**task_to_dict(t)) for t in tasks]
+    except Exception as e:
+        logger.error("Error fetching tasks: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@router.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: int, db: Session = Depends(get_db)):
+    """Return a specific task by ID."""
+    try:
+        task = db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            return JSONResponse(content={"error": "Task not found"}, status_code=404)
+        return TaskResponse(**task_to_dict(task))
+    except Exception as e:
+        logger.error("Error fetching tasks: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@router.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: int, db: Session = Depends(get_db)):
+    """Return a specific task by ID."""
+    try:
+        task = db.query(Task).filter(Task.id == task_id).first()
+        if not task:
+            return JSONResponse(content={"error": "Task not found"}, status_code=404)
+        return TaskResponse(**task_to_dict(task))
+    except Exception as e:
+        logger.error("Error fetching tasks: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@router.post("/tasks", response_model=TaskResponse)
+async def create_task(task: TaskResponse, db: Session = Depends(get_db)):
+    """Create a new task in the database."""
+    try:
+        db_task = Task(
+            title=task.title,
+            description=task.description,
+            status=task.status,
+        )
+        db.add(db_task)
+        db.commit()
+        db.refresh(db_task)
+        return TaskResponse(**task_to_dict(db_task))
+    except Exception as e:
+        logger.error("Error creating task: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(task_id: int, task: TaskResponse, db: Session = Depends(get_db)):
+    """Update an existing task in the database."""
+    try:
+        db_task = db.query(Task).filter(Task.id == task_id).first()
+        if not db_task:
+            return JSONResponse(content={"error": "Task not found"}, status_code=404)
+        db_task.title = task.title or db_task.title
+        db_task.description = task.description or db_task.description
+        db_task.status = task.status or db_task.status
+        db.commit()
+        db.refresh(db_task)
+        return TaskResponse(**task_to_dict(db_task))
+    except Exception as e:
+        logger.error("Error updating task: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@router.delete("/tasks/{task_id}")
+async def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """Delete a task from the database."""
+    try:
+        db_task = db.query(Task).filter(Task.id == task_id).first()
+        if not db_task:
+            return JSONResponse(content={"error": "Task not found"}, status_code=404)
+        db.delete(db_task)
+        db.commit()
+        return JSONResponse(content={"message": "Task deleted successfully"}, status_code=200)
+    except Exception as e:
+        logger.error("Error deleting task: %s", e)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
