@@ -22,7 +22,7 @@ Simple real time task app. Core Features includes:
 cd backend
 
 # run and build docker instance with docker compose
-docker-compose up --build
+docker compose up --build
 ```
 Backend will be running on  [http://localhost:8000](http://localhost:8000) with your browser to see the result.
 - to stop container for backend
